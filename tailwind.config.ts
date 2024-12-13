@@ -7,6 +7,9 @@ export default {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    borderRadius: {
+      lg: "10px",
+    },
     extend: {
       colors: {
         background: "var(--background)",
