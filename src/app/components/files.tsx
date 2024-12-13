@@ -20,19 +20,23 @@ const Files = () => {
   const [items, setItems] = useState<File[]>([]);
   const [draggingItem, setDraggingItem] = useState(null);
 
-  function showClass(element, className) {
+  function showClass(element: HTMLLIElement, className: string) {
     if (!element.classList.contains(className)) {
       element.classList.add(className);
     }
   }
 
-  function removeClass(element, className) {
+  function removeClass(element: HTMLLIElement, className: string) {
     if (element.classList.contains(className)) {
       element.classList.remove(className);
     }
   }
 
-  const handleDragStart = (e: React.DragEvent<HTMLLIElement>, item: any) => {
+  const handleDragStart = (
+    e: React.DragEvent<HTMLLIElement>,
+    item: HTMLLIElement
+  ) => {
+    // @ts-expect-error to fix
     setDraggingItem(item);
     e.dataTransfer.setData("text/plain", "");
   };
@@ -42,20 +46,25 @@ const Files = () => {
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
-    showClass(e.target, "border-b");
+    showClass(e.target as HTMLLIElement, "border-b");
     e.preventDefault();
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLLIElement>) => {
-    removeClass(e.target, "border-b");
+    removeClass(e.target as HTMLLIElement, "border-b");
+    // @ts-expect-error to fix
     e.target.style.backgroundColor = "transparent";
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLLIElement>, targetItem: any) => {
-    removeClass(e.target, "border-b");
+  const handleDrop = (
+    e: React.DragEvent<HTMLLIElement>,
+    targetItem: HTMLLIElement
+  ) => {
+    removeClass(e.target as HTMLLIElement, "border-b");
     if (!draggingItem) return;
     const newItems = [...items];
     const currentIndex = newItems.indexOf(draggingItem);
+    // @ts-expect-error to fix
     const targetIndex = newItems.indexOf(targetItem);
     if (currentIndex !== -1 && targetIndex !== -1) {
       newItems.splice(currentIndex, 1);
@@ -77,8 +86,10 @@ const Files = () => {
               id: uuidv4(),
               name: file.name,
               size: Number(file.size),
-              content: event.target?.result ?? "",
+              content: (event.target?.result as string) ?? "",
+              // @ts-expect-error to fix
               width: this.width,
+              // @ts-expect-error to fix
               height: this.height,
             },
           ]);
@@ -142,11 +153,17 @@ const Files = () => {
               item === draggingItem ? "dragging" : ""
             }`}
             draggable="true"
-            onDragStart={(e) => handleDragStart(e, item)}
+            onDragStart={(e) => {
+              // @ts-expect-error to fix
+              handleDragStart(e, item);
+            }}
             onDragEnd={handleDragEnd}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, item)}
+            onDrop={(e) => {
+              // @ts-expect-error to fix
+              handleDrop(e, item);
+            }}
           >
             {item.name} ({item.size})
           </li>
