@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@next/third-parties": "^15.1.0",
     "jspdf": "^2.5.2",
     "next": "15.1.0",
     "react": "^19.0.0",
