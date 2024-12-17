@@ -1,8 +1,10 @@
 "use client";
 
 import { v4 as uuidv4 } from "uuid";
-import { useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
+import { CiCircleRemove } from "react-icons/ci";
+import { twMerge } from "tailwind-merge";
 
 export type File = {
   id: string;
@@ -14,11 +16,15 @@ export type File = {
 };
 
 const Files = () => {
-  const fileInput = useRef<HTMLInputElement>(null);
+  const fileDropRef = useRef<HTMLInputElement>(null);
+
+  const [selectedFiles, setSelectedFiles] = useState<FileList>();
 
   const [status, setStatus] = useState("");
   const [items, setItems] = useState<File[]>([]);
-  const [draggingItem, setDraggingItem] = useState(null);
+  const [draggingItem, setDraggingItem] = useState<File | null>();
+  const [newFilesDraggedOver, setNewFilesDraggedOver] =
+    useState<boolean>(false);
 
   function showClass(element: HTMLLIElement, className: string) {
     if (!element.classList.contains(className)) {
@@ -32,40 +38,30 @@ const Files = () => {
     }
   }
 
-  const handleDragStart = (
-    e: React.DragEvent<HTMLLIElement>,
-    item: HTMLLIElement
-  ) => {
-    // @ts-expect-error to fix
+  const handleDragStart = (e: React.DragEvent<HTMLLIElement>, item: File) => {
     setDraggingItem(item);
     e.dataTransfer.setData("text/plain", "");
   };
 
-  const handleDragEnd = () => {
-    setDraggingItem(null);
-  };
+  const handleDragEnd = () => setDraggingItem(null);
 
   const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
     showClass(e.target as HTMLLIElement, "border-b");
     e.preventDefault();
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLLIElement>) => {
+  const handleDragLeave = (e: React.DragEvent<HTMLLIElement>) =>
     removeClass(e.target as HTMLLIElement, "border-b");
-    // @ts-expect-error to fix
-    e.target.style.backgroundColor = "transparent";
-  };
 
-  const handleDrop = (
-    e: React.DragEvent<HTMLLIElement>,
-    targetItem: HTMLLIElement
-  ) => {
+  const handleDrop = (e: React.DragEvent<HTMLLIElement>, targetItem: File) => {
     removeClass(e.target as HTMLLIElement, "border-b");
+
     if (!draggingItem) return;
+
     const newItems = [...items];
     const currentIndex = newItems.indexOf(draggingItem);
-    // @ts-expect-error to fix
     const targetIndex = newItems.indexOf(targetItem);
+
     if (currentIndex !== -1 && targetIndex !== -1) {
       newItems.splice(currentIndex, 1);
       newItems.splice(targetIndex, 0, draggingItem);
@@ -73,31 +69,69 @@ const Files = () => {
     }
   };
 
-  const addNewItem = () => {
-    for (const file of fileInput.current?.files || []) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const image = new Image();
-        image.src = event.target?.result as string;
-        image.onload = function () {
-          setItems((prevState: File[]) => [
-            ...prevState,
-            {
-              id: uuidv4(),
-              name: file.name,
-              size: Number(file.size),
-              content: (event.target?.result as string) ?? "",
-              // @ts-expect-error to fix
-              width: this.width,
-              // @ts-expect-error to fix
-              height: this.height,
-            },
-          ]);
-        };
-      };
-      reader.readAsDataURL(file);
+  const handleFilesDragOver = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!newFilesDraggedOver) {
+      setNewFilesDraggedOver(true);
     }
   };
+
+  const handleFilesDragLeave = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+
+    if (newFilesDraggedOver) {
+      setNewFilesDraggedOver(false);
+    }
+  };
+
+  const handleFilesDrop = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // @ts-expect-error to fix
+    setSelectedFiles([...e.dataTransfer.files]);
+  };
+
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) =>
+    // @ts-expect-error to fix
+    setSelectedFiles([...(e.target.files as FileList)]);
+
+  useEffect(() => {
+    const addFiles = () => {
+      for (const file of selectedFiles || []) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const image = new Image();
+          image.src = event.target?.result as string;
+          image.onload = function () {
+            setItems((prevState: File[]) => [
+              ...prevState,
+              {
+                id: uuidv4(),
+                name: file.name,
+                size: Number(file.size),
+                content: (event.target?.result as string) ?? "",
+                // @ts-expect-error to fix
+                width: this.width,
+                // @ts-expect-error to fix
+                height: this.height,
+              },
+            ]);
+          };
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    if (selectedFiles && selectedFiles.length > 0) {
+      console.log("processing " + selectedFiles.length + " items");
+      addFiles();
+    }
+  }, [selectedFiles]);
+
+  const deleteItem = (id: string) =>
+    setItems((prevState: File[]) => prevState.filter((item) => item.id !== id));
 
   const createPDF = () => {
     setStatus("Starting...");
@@ -129,51 +163,108 @@ const Files = () => {
 
     doc.save("my_images.pdf");
     setStatus("Finished");
-    setTimeout(() => setStatus(""), 5000);
+    setTimeout(() => setStatus(""), 2000);
+  };
+
+  const bytesToSize = (bytes: number): string => {
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    if (bytes === 0) return "0 Byte";
+    const i = Math.round(Math.floor(Math.log(bytes) / Math.log(1024)));
+    return `${parseFloat((bytes / Math.pow(1024, i)).toFixed(2))} ${sizes[i]}`;
   };
 
   return (
     <>
-      <div className="new-item">
+      <label
+        htmlFor="dropzone-file"
+        className={twMerge(
+          "flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600",
+          newFilesDraggedOver ? "bg-grey-400" : "transparent"
+        )}
+        onDragOver={handleFilesDragOver}
+        onDragLeave={handleFilesDragLeave}
+        onDrop={handleFilesDrop}
+      >
+        <div className="flex flex-col items-center justify-center pt-5 pb-6 w-full">
+          <svg
+            className="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 20 16"
+          >
+            <path
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"
+            />
+          </svg>
+          <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+            <span className="font-semibold">Click to upload</span> or drag and
+            drop
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            SVG, PNG, JPG or GIF (MAX. 800x400px)
+          </p>
+        </div>
         <input
-          ref={fileInput}
+          id="dropzone-file"
           type="file"
-          className="bg-gray-100 mx-4 my-2"
           multiple
+          className="hidden"
+          ref={fileDropRef}
+          onChange={onFileChange}
         />
-        <button onClick={addNewItem} className="add-button">
-          Add New File
-        </button>
-      </div>
+      </label>
+
       <ul className="block list-decimal list-inside">
         {items.map((item: File) => (
           <li
             key={item.id}
-            className={`my-1 py-1 px-2 bg-gray-100 border-l border-black item ${
+            className={`my-1 py-1 px-2 bg-gray-100 border-l border-black item flex w-full items-center hover:bg-sky-700 ${
               item === draggingItem ? "dragging" : ""
             }`}
             draggable="true"
-            onDragStart={(e) => {
-              // @ts-expect-error to fix
-              handleDragStart(e, item);
-            }}
+            onDragStart={(e) => handleDragStart(e, item)}
             onDragEnd={handleDragEnd}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            onDrop={(e) => {
-              // @ts-expect-error to fix
-              handleDrop(e, item);
-            }}
+            onDrop={(e) => handleDrop(e, item)}
           >
-            {item.name} ({item.size})
+            <div className="w-[40px] mr-4">
+              <img
+                src={decodeURIComponent(item.content)}
+                className="h-[40px]"
+                alt={item.name}
+              />
+            </div>
+            <div
+              className="grow text-ellipsis"
+              title={`${item.name} (${item.size})`}
+            >
+              <span className="mr-2 select-none pointer-events-none">
+                {item.name}
+              </span>
+              <span className="text-sm text-gray-400">
+                {bytesToSize(item.size)}
+              </span>
+            </div>
+            <div className="pl-2" onClick={() => deleteItem(item.id)}>
+              <CiCircleRemove size={25} />
+            </div>
           </li>
         ))}
       </ul>
 
       <div className="flex gap-4 items-center flex-col w-full">
         <button
-          className="rounded-lg px-4 py-2 bg-black text-white"
-          onClick={() => createPDF()}
+          className={twMerge(
+            "rounded-lg px-4 py-2 bg-black text-white",
+            status.length > 0 ? "bg-grey" : ""
+          )}
+          onClick={createPDF}
         >
           Generate PDF
         </button>
