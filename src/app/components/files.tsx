@@ -5,6 +5,7 @@ import { ChangeEvent, DragEvent, useEffect, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
 import { CiCircleRemove } from "react-icons/ci";
 import { twMerge } from "tailwind-merge";
+import { sendGAEvent } from "@next/third-parties/google";
 
 export type File = {
   id: string;
@@ -13,6 +14,7 @@ export type File = {
   size: number;
   width: number;
   height: number;
+  type: string;
 };
 
 const Files = () => {
@@ -105,6 +107,7 @@ const Files = () => {
           const image = new Image();
           image.src = event.target?.result as string;
           image.onload = function () {
+            console.log("onload", event.target);
             setItems((prevState: File[]) => [
               ...prevState,
               {
@@ -116,6 +119,7 @@ const Files = () => {
                 width: this.width,
                 // @ts-expect-error to fix
                 height: this.height,
+                type: file.type,
               },
             ]);
           };
@@ -125,7 +129,6 @@ const Files = () => {
     };
 
     if (selectedFiles && selectedFiles.length > 0) {
-      console.log("processing " + selectedFiles.length + " items");
       addFiles();
     }
   }, [selectedFiles]);
@@ -133,8 +136,21 @@ const Files = () => {
   const deleteItem = (id: string) =>
     setItems((prevState: File[]) => prevState.filter((item) => item.id !== id));
 
-  const createPDF = () => {
-    setStatus("Starting...");
+  const generatePDF = () => {
+    const gaItems = items.map(({ name, size, width, height, type }) => ({
+      name,
+      size,
+      width,
+      height,
+      type,
+    }));
+
+    sendGAEvent("event", "generatePDF", {
+      files: gaItems,
+    });
+
+    setStatus("Generating...");
+
     const doc = new jsPDF({
       compress: true,
       unit: "px",
@@ -248,7 +264,7 @@ const Files = () => {
                 {item.name}
               </span>
               <span className="text-sm text-gray-400">
-                {bytesToSize(item.size)}
+                {bytesToSize(item.size)} - {item.type}
               </span>
             </div>
             <div className="pl-2" onClick={() => deleteItem(item.id)}>
@@ -264,7 +280,7 @@ const Files = () => {
             "rounded-lg px-4 py-2 bg-black text-white",
             status.length > 0 ? "bg-grey" : ""
           )}
-          onClick={createPDF}
+          onClick={generatePDF}
         >
           Generate PDF
         </button>
