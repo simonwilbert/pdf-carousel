@@ -137,16 +137,17 @@ const Files = () => {
     setItems((prevState: File[]) => prevState.filter((item) => item.id !== id));
 
   const generatePDF = () => {
-    const gaItems = items.map(({ name, size, width, height, type }) => ({
-      name,
-      size,
-      width,
-      height,
-      type,
-    }));
-
     sendGAEvent("event", "generatePDF", {
-      files: gaItems,
+      fileCount: items.length,
+      maxWidth: items.reduce((max, item) => Math.max(max, item.width), 0),
+      maxHeight: items.reduce((max, item) => Math.max(max, item.height), 0),
+      types: [
+        ...new Set(
+          items.map((item) => item?.type?.toLowerCase()).filter(Boolean)
+        ),
+      ]
+        .sort()
+        .join(","),
     });
 
     setStatus("Generating...");
