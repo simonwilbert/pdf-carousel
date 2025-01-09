@@ -1,5 +1,14 @@
-"use client";
+import { Metadata } from "next/types";
 import Files from "./components/files";
+
+export const metadata: Metadata = {
+  title: "PDF Carousel by PlanetHurley",
+  description: "Create an image carousel inside a PDF",
+  icons: {
+    icon: "/images/favicon-32x32.png",
+    apple: "/apple-touch-icon.png",
+  },
+};
 
 export default function Home() {
   return (
