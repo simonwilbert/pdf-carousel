@@ -1,0 +1,13 @@
+{
+  "folders": [
+	{
+		"name": "pdf-carousel",
+		"path": "../.."
+	},
+	{
+		"name": "media",
+		"path": "../../../../brevan/openai-starter/media"
+	}
+],
+  "settings": {}
+}
